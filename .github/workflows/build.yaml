@@ -2,19 +2,24 @@ name: Build Go Readability
 
 on:
   schedule:
-    # Проверка обновлений каждый день в полночь
-    - cron: '0 0 * * *'
-  workflow_dispatch:
-    # Возможность ручного запуска workflow
+    - cron: '0 0 * * *'  # Проверка обновлений каждый день в полночь
+  workflow_dispatch:  # Возможность ручного запуска workflow
 
 jobs:
   check-and-build:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout tracking repository
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ github.repository }}
+        path: tracking-repo
+
     - name: Checkout original repository
       uses: actions/checkout@v3
       with:
         repository: go-shiori/go-readability
+        path: original-repo
         fetch-depth: 1
 
     - name: Setup Go
@@ -24,7 +29,7 @@ jobs:
 
     - name: Build binary
       run: |
-        cd ./cmd/go-readability
+        cd ./original-repo/cmd/go-readability
         CGO_ENABLED=0 go build -ldflags '-extldflags "-static"'
         ./go-readability -h
         echo 'Бинарник скомпилировался сюда:'
@@ -36,14 +41,13 @@ jobs:
         # Получаем последний коммит в оригинальном репо
         LATEST_COMMIT=$(curl -s https://api.github.com/repos/go-shiori/go-readability/commits/main | jq -r '.sha')
         
-        # Сохраняем SHA последнего коммита в файл
-        echo "$LATEST_COMMIT" > latest_commit.txt
+        # Путь к файлу с SHA в вашем репозитории
+        COMMIT_FILE="${GITHUB_WORKSPACE}/tracking-repo/latest_commit.txt"
         
-        # Проверяем, есть ли сохраненный предыдущий коммит
-        if [ -f previous_commit.txt ]; then
-          PREVIOUS_COMMIT=$(cat previous_commit.txt)
+        # Проверяем существование файла
+        if [ -f "$COMMIT_FILE" ]; then
+          PREVIOUS_COMMIT=$(cat "$COMMIT_FILE")
           
-          # Сравниваем коммиты
           if [ "$LATEST_COMMIT" != "$PREVIOUS_COMMIT" ]; then
             echo "New changes detected!"
             echo "new_changes=true" >> $GITHUB_OUTPUT
@@ -56,20 +60,29 @@ jobs:
           echo "new_changes=true" >> $GITHUB_OUTPUT
         fi
         
-        # Обновляем файл предыдущего коммита
-        echo "$LATEST_COMMIT" > previous_commit.txt
+        # Обновляем файл с SHA
+        echo "$LATEST_COMMIT" > "$COMMIT_FILE"
+
+    - name: Commit and push changes
+      run: |
+        cd tracking-repo
+        git config user.name 'github-actions'
+        git config user.email 'github-actions@github.com'
+        git add latest_commit.txt
+        git commit -m "Update latest commit SHA" || exit 0
+        git push
 
     - name: Upload artifact
       if: steps.check_changes.outputs.new_changes == 'true'
       uses: actions/upload-artifact@v3
       with:
         name: go-readability-binary
-        path: ./cmd/go-readability/go-readability
+        path: ./original-repo/cmd/go-readability/go-readability
 
     - name: Create Release
       if: steps.check_changes.outputs.new_changes == 'true'
       uses: softprops/action-gh-release@v1
       with:
-        files: ./cmd/go-readability/go-readability
+        files: ./original-repo/cmd/go-readability/go-readability
         tag_name: latest
-        prerelease: true
+        release_name: "Latest Release"
