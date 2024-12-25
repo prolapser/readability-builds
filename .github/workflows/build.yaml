@@ -39,7 +39,7 @@ jobs:
       id: check_changes
       run: |
         # Получаем последний коммит в оригинальном репо
-        LATEST_COMMIT=$(curl -s https://api.github.com/repos/go-shiori/go-readability/commits/main | jq -r '.sha')
+        LATEST_COMMIT=$(curl -s https://api.github.com/repos/go-shiori/go-readability/commits/master | jq -r '.sha')
         
         # Путь к файлу с SHA в вашем репозитории
         COMMIT_FILE="${GITHUB_WORKSPACE}/tracking-repo/latest_commit.txt"
