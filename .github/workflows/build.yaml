@@ -22,23 +22,10 @@ jobs:
         path: original-repo
         fetch-depth: 1
 
-    - name: установка Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
-
-    - name: сборка статического бинарника
-      run: |
-        cd ./original-repo/cmd/go-readability
-        CGO_ENABLED=0 go build -ldflags '-extldflags "-static"'
-        ./go-readability -h
-        echo 'бинарник скомпилировался сюда:'
-        realpath ./go-readability
-
     - name: проверка изменений в оригинальном репо
       id: check_changes
       run: |
-        # оследний коммит в оригинальном репо
+        # последний коммит в оригинальном репо
         LATEST_COMMIT=$(curl -s https://api.github.com/repos/go-shiori/go-readability/commits/master | jq -r '.sha')
         
         # файл с SHA в этом репозитории
@@ -63,7 +50,31 @@ jobs:
         # обновление файл с SHA
         echo "$LATEST_COMMIT" > "$COMMIT_FILE"
 
+    - name: установка Go
+      if: steps.check_changes.outputs.new_changes == 'true'
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+
+    - name: сборка статического бинарника для Linux
+      if: steps.check_changes.outputs.new_changes == 'true'
+      run: |
+        cd ./original-repo/cmd/go-readability
+        CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"'
+        ./go-readability -h
+        echo 'бинарник скомпилировался сюда (Linux):'
+        realpath ./go-readability
+
+    - name: сборка статического бинарника для Windows
+      if: steps.check_changes.outputs.new_changes == 'true'
+      run: |
+        cd ./original-repo/cmd/go-readability
+        CGO_ENABLED=0 GOOS=windows go build -ldflags '-extldflags "-static"' -o go-readability.exe
+        echo 'бинарник скомпилировался сюда (Windows):'
+        realpath ./go-readability.exe
+
     - name: фиксация commit SHA оригинального репо в этом репо
+      if: steps.check_changes.outputs.new_changes == 'true'
       run: |
         cd tracking-repo
         git config user.name 'github-actions'
@@ -81,7 +92,8 @@ jobs:
       if: steps.check_changes.outputs.new_changes == 'true'
       uses: softprops/action-gh-release@v1
       with:
-        files: ./original-repo/cmd/go-readability/go-readability
+        files: |
+          ./original-repo/cmd/go-readability/go-readability
+          ./original-repo/cmd/go-readability/go-readability.exe
         tag_name: latest
         release_name: "latest"
-        
