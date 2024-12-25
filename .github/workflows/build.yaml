@@ -1,0 +1,75 @@
+name: Build Go Readability
+
+on:
+  schedule:
+    # Проверка обновлений каждый день в полночь
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # Возможность ручного запуска workflow
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout original repository
+      uses: actions/checkout@v3
+      with:
+        repository: go-shiori/go-readability
+        fetch-depth: 1
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 'stable'
+
+    - name: Build binary
+      run: |
+        cd ./cmd/go-readability
+        CGO_ENABLED=0 go build -ldflags '-extldflags "-static"'
+        ./go-readability -h
+        echo 'Бинарник скомпилировался сюда:'
+        realpath ./go-readability
+
+    - name: Check for changes
+      id: check_changes
+      run: |
+        # Получаем последний коммит в оригинальном репо
+        LATEST_COMMIT=$(curl -s https://api.github.com/repos/go-shiori/go-readability/commits/main | jq -r '.sha')
+        
+        # Сохраняем SHA последнего коммита в файл
+        echo "$LATEST_COMMIT" > latest_commit.txt
+        
+        # Проверяем, есть ли сохраненный предыдущий коммит
+        if [ -f previous_commit.txt ]; then
+          PREVIOUS_COMMIT=$(cat previous_commit.txt)
+          
+          # Сравниваем коммиты
+          if [ "$LATEST_COMMIT" != "$PREVIOUS_COMMIT" ]; then
+            echo "New changes detected!"
+            echo "new_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "No new changes"
+            echo "new_changes=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "First run or no previous commit found"
+          echo "new_changes=true" >> $GITHUB_OUTPUT
+        fi
+        
+        # Обновляем файл предыдущего коммита
+        echo "$LATEST_COMMIT" > previous_commit.txt
+
+    - name: Upload artifact
+      if: steps.check_changes.outputs.new_changes == 'true'
+      uses: actions/upload-artifact@v3
+      with:
+        name: go-readability-binary
+        path: ./cmd/go-readability/go-readability
+
+    - name: Create Release
+      if: steps.check_changes.outputs.new_changes == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./cmd/go-readability/go-readability
+        tag_name: latest
+        prerelease: true
