@@ -59,11 +59,12 @@ jobs:
     - name: сборка статического бинарника для Linux
       if: steps.check_changes.outputs.new_changes == 'true'
       run: |
+        cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
+        cd ./original-repo/cmd/go-readability
         go mod init go-readability
         go get github.com/tdewolff/minify/v2
         go get github.com/tdewolff/minify/v2/html
-        cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
-        cd ./original-repo/cmd/go-readability
+        go mod tidy
         CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"'
         ./go-readability -h
         echo 'бинарник скомпилировался сюда (Linux):'
@@ -72,11 +73,12 @@ jobs:
     - name: сборка статического бинарника для Windows
       if: steps.check_changes.outputs.new_changes == 'true'
       run: |
+        cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
+        cd ./original-repo/cmd/go-readability
         go mod init go-readability
         go get github.com/tdewolff/minify/v2
         go get github.com/tdewolff/minify/v2/html
-        cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
-        cd ./original-repo/cmd/go-readability
+        go mod tidy
         CGO_ENABLED=0 GOOS=windows go build -ldflags '-extldflags "-static"' -o go-readability.exe
         echo 'бинарник скомпилировался сюда (Windows):'
         realpath ./go-readability.exe
