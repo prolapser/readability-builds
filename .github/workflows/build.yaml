@@ -59,7 +59,6 @@ jobs:
     - name: сборка статического бинарника для Linux
       if: steps.check_changes.outputs.new_changes == 'true'
       run: |
-        go install github.com/tdewolff/minify@latest
         go get github.com/tdewolff/minify/v2
         go get github.com/tdewolff/minify/v2/html
         cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
