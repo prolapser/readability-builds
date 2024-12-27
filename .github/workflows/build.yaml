@@ -59,7 +59,7 @@ jobs:
     - name: сборка статического бинарника для Linux
       if: steps.check_changes.outputs.new_changes == 'true'
       run: |
-        go mod go-readability
+        go mod init go-readability
         go get github.com/tdewolff/minify/v2
         go get github.com/tdewolff/minify/v2/html
         cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
@@ -72,7 +72,7 @@ jobs:
     - name: сборка статического бинарника для Windows
       if: steps.check_changes.outputs.new_changes == 'true'
       run: |
-        go mod go-readability
+        go mod init go-readability
         go get github.com/tdewolff/minify/v2
         go get github.com/tdewolff/minify/v2/html
         cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
