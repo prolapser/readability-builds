@@ -59,6 +59,7 @@ jobs:
     - name: сборка статического бинарника для Linux
       if: steps.check_changes.outputs.new_changes == 'true'
       run: |
+        cp "${GITHUB_WORKSPACE}/tracking-repo/main.go" ./original-repo/cmd/go-readability
         cd ./original-repo/cmd/go-readability
         CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"'
         ./go-readability -h
